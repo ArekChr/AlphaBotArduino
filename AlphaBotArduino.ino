@@ -74,18 +74,18 @@ byte POSITION = 0;        // 0 = Góra / 1 = Prawo / 2 = Dół / 3 = Lewo
 String comdata = "";            // Komenda danych
 byte flag_bt = 1;               // Flaga stanu dla bluetooth
 
-// ---------------- Zmienne pilota IR ------------------ //
+// -------------------- Zmienne pilota IR ---------------------- //
 
 unsigned long lasttime = 0;     // 
 unsigned char results;          // Otrzymany sygnał
 byte flag_ir = 0;               // Flaga stanu dla IR
 
-// --------------- Motor speed variables ------------------------- //
+// ------------------- Zmienne prędkości ----------------------------- //
 int Speed = 100;                // Główna prędkość
 int SpeedLeft = Speed;          // Prędkość lewego koła
 int SpeedRight = Speed;         // prędkość prawego kołą
 
-// ---------- Zmienne do obliczania korekcji jazdy ----------- //
+// ------------- Zmienne do obliczania korekcji jazdy ---------------- //
 short SetDPos = 1;          // Rozbieżność punktów dla wzoru odriometrii
 short SetDSpeed = 5;        // Zmienna różnicy predkości
 int dPos;                   // Zmienna róznicy L/P koła
@@ -353,7 +353,7 @@ void SpeedCompensation()
   dPos = (L_MOTOR_REAL_POS - L_DIFF ) - (R_MOTOR_REAL_POS - R_DIFF);
   switch (DIRECTION)
   {
-    case 1: // when FORWARD
+    case 1: // kiedy przód
       if (dPos < SetDPos) {
         SpeedLeft = Speed + SetDSpeed * abs(dPos);
         SpeedRight = Speed - SetDSpeed * abs(dPos);
@@ -364,7 +364,7 @@ void SpeedCompensation()
       }
       else{ SpeedLeft = Speed; SpeedRight = Speed; }
       break;
-    case 0: // when BARKWARD
+    case 0: // kiedy tył
       if (dPos > SetDPos) {
         SpeedLeft = Speed - SetDSpeed * abs(dPos);
         SpeedRight = Speed + SetDSpeed * abs(dPos);
