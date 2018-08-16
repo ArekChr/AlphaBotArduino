@@ -1,103 +1,98 @@
-// ------------------------------- Libraries ----------------------------------//
+// ------------------------------- Biblioteki ----------------------------------//
 #include <Encoder.h>
 
-// --------------------------- Variables definition ---------------------------//
-// ----------------------------- Motors variables -----------------------------//
-#define PWMA   3            //Left Motor Speed pin (ENA)
-#define AIN2   A0           //Motor-L forward (IN2).
-#define AIN1   A1           //Motor-L backward (IN1)
-#define PWMB   5            //Right Motor Speed pin (ENB)
-#define BIN1   A2           //Motor-R forward (IN3)
-#define BIN2   A3           //Motor-R backward (IN4)
+// --------------------------- Definicja zmiennych ---------------------------//
+// ----------------------------- Zmienne silnika -----------------------------//
+#define PWMA   3            //Szybkość lewego silnika pin (ENA)
+#define AIN2   A0           //Lewy silnik - przód (IN2)
+#define AIN1   A1           //Lewy silnik - tył (IN1)
+#define PWMB   5            //Szybkość prawego silnika pin(ENB)
+#define BIN1   A2           //Prawy silnik - przód (IN3)
+#define BIN2   A3           //Prawy silnik - tył (IN4)
 
-// ---------------------- IR remote control ------------------------ //
-#define IR  4               //he infrare remote receiver pin 
+// ---------------------- Pilot IR ------------------------ //
+#define IR  4
 
 // --------------- IR remote control variables -------------//
-#define KEY2 0x18           //Key:2 
-#define KEY8 0x52           //Key:8 
-#define KEY4 0x08           //Key:4 
-#define KEY6 0x5A           //Key:6 
-#define KEY1 0x0C           //Key:1 
-#define KEY3 0x5E           //Key:3 
-#define KEY5 0x1C           //Key:5
-#define SpeedDown 0x07      //Key:VOL-
-#define SpeedUp 0x15        //Key:VOL+
-#define ResetSpeed 0x09     //Key:EQ
-#define AddDifSpeed 0x40    //Key:Next
-#define SubDifSpeed 0x44    //Key:Prev
-#define AddDifPos 0x46      //Key:Ch
-#define SubDifPos 0x45      //Key:Ch-
-#define Repeat 0xFF         //press and hold the key
+#define KEY2 0x18           //Przycisk:2 
+#define KEY8 0x52           //Przycisk:8 
+#define KEY4 0x08           //Przycisk:4 
+#define KEY6 0x5A           //Przycisk:6 
+#define KEY1 0x0C           //Przycisk:1 
+#define KEY3 0x5E           //Przycisk:3 
+#define KEY5 0x1C           //Przycisk:5
+#define SpeedDown 0x07      //Przycisk:VOL-
+#define SpeedUp 0x15        //Przycisk:VOL+
+#define ResetSpeed 0x09     //Przycisk:EQ
+#define AddDifSpeed 0x40    //Przycisk:Next
+#define SubDifSpeed 0x44    //Przycisk:Prev
+#define AddDifPos 0x46      //Przycisk:Ch
+#define SubDifPos 0x45      //Przycisk:Ch-
+#define Repeat 0xFF         //Przytrzymanie przycisku
 
-// ---------------------- Encoder variables ------------------------//
-#define L_OUT_A 8           //Left Motor Encoder Output A
-#define L_OUT_B 9           //Left Motor Encoder Output B
-#define R_OUT_A 10          //Right Motor Encoder Output A
-#define R_OUT_B 11          //Right Motor Encoder Output B
+// ---------------------- Zmienne ekodera ------------------------//
+#define L_OUT_A 8           //Lewy enkoder wyjście A
+#define L_OUT_B 9           //Lewy enkoder wyjście B
+#define R_OUT_A 10          //Prawy enkoder wyjście A
+#define R_OUT_B 11          //Prawy enkoder wyjście B
 
-// ------------------------ Initialization -------------------------//
+// ------------------------ Inicjalizacja -------------------------//
 Encoder LEnc(L_OUT_A, L_OUT_B);
 Encoder REnc(R_OUT_A, R_OUT_B);
 
-unsigned int pingSpeed = 50;  // How frequently are we going to send out a ping (in milliseconds). 
-                              //                                  50ms would be 20 times a second.
-unsigned long pingTimer;      // Holds the next ping time.
-int DISTANCE = 100;           // Distance from the object at the front
+// -----------------------  Zmienne pozycji enkodera ----------------------------- //
+long OLD_L_POS = -999;      //Pozycja lewego koła, używana do zmiany pozycji
+long OLD_R_POS = -999;      //Pozycja prawego koła, używana do zmiany pozycji
+long TARG_L_POS = 0;        //Pozycja docelowa dla lewego koła
+long TARG_R_POS = 0;        //Pozycja docelowa dla prawego koła
+long L_MOTOR_REAL_POS = 0;  //Pozycja aktualna dla lewego koła
+long R_MOTOR_REAL_POS = 0;  //Pozycja aktualna dla prawego koła
 
-// -----------------------  Encoder Position variables ----------------------------- //
-long OLD_L_POS  = -999;           // Old left position, used while position changed
-long OLD_R_POS  = -999;           // Old right position, used while position changed
-long TARG_L_POS = 0;              // Target position for left motor
-long TARG_R_POS = 0;              // Target position for right motor
-long L_MOTOR_REAL_POS  = 0;       // Real position from left motor
-long R_MOTOR_REAL_POS  = 0;       // Real position from right motor
+const float cm = 3.46;      // stała - 346 jednostek enkodera = 100 cm
 
-const float cm = 3.46;    // constant - 346 encoder points = 100 cm
+// --- Zmienne do obliczania osi X i Y oraz rzeczywistej pozycji odniesienia --- //
+long X = 0;               // Rzeczywista pozycja osi X
+long Y = 0;               // Rzeczywista pozycja osi Y
+long TRAV_ROUTE = 0;      // Licznik pokoannej trasy
 
-// --- Var for calculate X and Y real position in reference to start position --- //
-long X = 0;               // X real position
-long Y = 0;               // Y real position
-long TRAV_ROUTE = 0;      // Traveled route
+long X_NEG = 0;           // Pozycja X kierunek ujemny
+long X_POS = 0;           // Pozycja Y kierunek dodatni
+long Y_NEG = 0;           // Pozycja Y kierunek ujemny
+long Y_POS = 0;           // Pozycja Y kierunek dodatni
 
-long X_NEG = 0;           // X position in negative direction
-long X_POS = 0;           // X position in positive direction
-long Y_NEG = 0;           // Y position in negative direction
-long Y_POS = 0;           // Y position in positive direction
+long REF_TRAV_ROUTE = 0;  // Ostatnia pozycja przed zmianąmiana kierunku
+long REF_Y_POS = 0;       // Ostatnia pozycja osi Y dodatniej przez zmianą kierunku
+long REF_Y_NEG = 0;       // Ostatnia pozycja osi Y ujemnej przez zmianą kierunku
+long REF_X_POS = 0;       // Ostatnia pozycja osi X dodatniej przez zmianą kierunku
+long REF_X_NEG = 0;       // Ostatnia pozycja osi X ujemnej przez zmianą kierunku
 
-long REF_TRAV_ROUTE = 0;  // Last position before change direction
-long REF_Y_POS = 0;       // Last Y positive before change direction
-long REF_Y_NEG = 0;       // Last Y negative before change direction
-long REF_X_POS = 0;       // Last X positive before change direction
-long REF_X_NEG = 0;       // Last X negative before change direction
+byte DIRECTION = 1;       // Kierunek podczas jazdy / 1 = Naprzód / 0 = Cofanie / 2 = Pozostałe 
+byte POSITION = 0;        // 0 = Góra / 1 = Prawo / 2 = Dół / 3 = Lewo
 
-byte DIRECTION = 1;       // Direction while riding / 1 = Forward / 0 = Backward / 2 = other 
-byte POSITION = 0;        // 0 = UP / 1 = Right / 2 = Down / 3 = Left
+// -------------------- Zmienne Bluetooth ---------------------- //
 
-// -------------------- Bluetooth variables ---------------------- //
+String comdata = "";            // Komenda danych
+byte flag_bt = 1;               // Flaga stanu dla bluetooth
 
-String comdata = "";            // Data command
-byte flag_bt = 1;               // flag_irstate for bluetooth
-
-// ---------------- IR Remote control variables ------------------ //
+// ---------------- Zmienne pilota IR ------------------ //
 
 unsigned long lasttime = 0;     // 
-unsigned char results;          // received results 
-byte flag_ir = 0;               // flag_irstate for ir
+unsigned char results;          // Otrzymany sygnał
+byte flag_ir = 0;               // Flaga stanu dla IR
 
 // --------------- Motor speed variables ------------------------- //
-int Speed = 100;                // Main speed of robot
-int SpeedLeft = Speed;          // Speed on left wheel
-int SpeedRight = Speed;         // Speed on right wheel
+int Speed = 100;                // Główna prędkość
+int SpeedLeft = Speed;          // Prędkość lewego koła
+int SpeedRight = Speed;         // prędkość prawego kołą
 
-// ---------- Variables for calculate speed correction ----------- //
-short SetDPos = 1;          // Disccrepancy of points for pattern
-short SetDSpeed = 5;        // Speed varriable for pattern
-int dPos;                   // Difference between left and right motor
-int L_DIFF = 0;             // Left wheel difference
-int R_DIFF = 0;             // Right wheel difference
+// ---------- Zmienne do obliczania korekcji jazdy ----------- //
+short SetDPos = 1;          // Rozbieżność punktów dla wzoru odriometrii
+short SetDSpeed = 5;        // Zmienna różnicy predkości
+int dPos;                   // Zmienna róznicy L/P koła
+int L_DIFF = 0;             // Zmienna różnicy lewego koła
+int R_DIFF = 0;             // Zmienna różnicy prawego koła
 
-// -------------------- Transport task states -------------------- //
+// -------------------- Stany zadania transportowego -------------------- //
 bool Task = false;
 bool DriveTask = false;
 bool IS_X_AXIS = false;
@@ -105,12 +100,10 @@ bool IS_Y_AXIS = true;
 bool Y_COMPLETE = false;
 bool X_COMPLETE = false;
 
-byte IS_LOCKED = 0;    // about 4 states
-
 int X_TARG = 0;
 int Y_TARG = 0;
 
-// ------------- Function initialization -------------- //
+// ------------- Inicjalizacja funkcji -------------- //
 
 char IR_decode(unsigned char code);
 void translateIR();
@@ -141,20 +134,20 @@ void setup() {
   pingTimer = millis();
 }
 
-// ----------------- Main loop of program ---------------- //
+// ----------------- Główna pętla programu ---------------- //
 
 void loop() {
 
   if (Task == true) {
-    TransportTask();        // Transport task 
+    TransportTask();        // Zadanie transportowe
   }
-  EncoderPositionRead();    // Motors position read
-  Drive();                  // Position correction
-  Read_XY();                // Read current position on X,Y axis
-  SpeedCompensation();      // Compensation motor speed while driving
-  Logger();                 // Write all data in serial
-  IR_Read();                // IR remote control
-  BluetoothSerialRead();    // Reads commands on bluetooth serial port
+  EncoderPositionRead();    // Odczyt pozycji kół
+  Drive();                  // Algorytm jazdy
+  Read_XY();                // Odczyt pozycji (x,y)
+  SpeedCompensation();      // Korekta rozbieżności pozycji kół
+  Logger();                 // Czytanie danych
+  IR_Read();                // Czytanie komend IR
+  BluetoothSerialRead();    // Czytanie komend bluetooth
 }
 
 void TransportTask()
@@ -169,35 +162,35 @@ void TransportTask()
   if (DriveTask == true)
   {
     if (Y_COMPLETE == false && IS_Y_AXIS == true && Y_TARG + 5 > Y)     
-    {                       // --- if positive Y direction not reached --- //
+    {
       if (POSITION == 2) {
         right(); right();
       }
       else forward();
     }
     else if (Y_COMPLETE == false && IS_Y_AXIS == true && Y_TARG - 5 < Y)     
-    {                       // --- if negative Y direction not reached --- //
+    {
       if (POSITION == 0) {
         right(); right();
       }
       else forward();
     }
     else if (Y_COMPLETE == true && X_COMPLETE == false && IS_Y_AXIS == true)
-    {                          // --- if direction Y reached but X not --- //
+    {
       if (X_TARG > X) {
         right();
       }
       else left();
     }
     else if (X_COMPLETE == true && Y_COMPLETE == false && IS_X_AXIS == true)  
-    {                          // --- if direction X reached but Y not --- //
+    {
       if (Y_TARG > Y) {
         left();
       }
       else left();
     }
     else if (X_COMPLETE == false && IS_X_AXIS == true && X_TARG + 5 > X)  
-    {                       // --- if positive X direction not reached --- //
+    {
       if (POSITION == 3) {
         left(); left();
       }
@@ -206,7 +199,7 @@ void TransportTask()
   }
   if (Y_TARG + 4 > Y && Y_TARG - 4 < Y && X_TARG + 4 > X && X_TARG - 4 < X )
   {
-    Task = false;             // Task completed!
+    Task = false;             // Zadanie zakończone!
   }
 }
 
@@ -234,9 +227,9 @@ void right(){
   TARG_R_POS = TARG_R_POS - 24;
   L_DIFF = L_DIFF + 24;
   R_DIFF = R_DIFF - 24;
-  onTurnRight();                // change orientation
-  SpeedLeft = Speed;            // Reset speed of motors
-  SpeedRight = Speed;           // Reset speed of motors
+  onTurnRight();                // zmiana orientacji
+  SpeedLeft = Speed;            // Reset predkości lewego silnika
+  SpeedRight = Speed;           // Reset predkości prawego silnika
   DriveTask = false;
 }
 void left(){
@@ -245,9 +238,9 @@ void left(){
   TARG_R_POS = TARG_R_POS + 24;
   L_DIFF = L_DIFF - 24;
   R_DIFF = R_DIFF + 24;
-  onTurnLeft();                 // change orientation
-  SpeedLeft = Speed;            // Reset speed of motors
-  SpeedRight = Speed;           // Reset speed of motors
+  onTurnLeft();                 // zmiana orientacji
+  SpeedLeft = Speed;            // Reset predkości lewego silnika
+  SpeedRight = Speed;           // Reset predkości prawego silnika
   DriveTask = false;
 }
 void stop() {
@@ -390,7 +383,7 @@ void SpeedCompensation()
 }
 void Logger()
 {
-  if (L_MOTOR_REAL_POS != OLD_L_POS || R_MOTOR_REAL_POS != OLD_R_POS) // Logging data on changed position
+  if (L_MOTOR_REAL_POS != OLD_L_POS || R_MOTOR_REAL_POS != OLD_R_POS) // Czytanie danych podczas zmiany pozycji
   {
     OLD_R_POS = R_MOTOR_REAL_POS;
     OLD_L_POS = L_MOTOR_REAL_POS;
