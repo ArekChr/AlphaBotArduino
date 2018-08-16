@@ -14,11 +14,6 @@
 // ---------------------- IR remote control ------------------------ //
 #define IR  4               //he infrare remote receiver pin 
 
-// ------------------------ Ulstrasonic sensor variables ----------------------//
-#define TRIGGER_PIN   13    // Arduino pin tied to trigger pin on ping sensor.
-#define ECHO_PIN      12    // Arduino pin tied to echo pin on ping sensor.
-#define MAX_DISTANCE  300   // Maximum distance we want to ping for (in centimeters)
-
 // --------------- IR remote control variables -------------//
 #define KEY2 0x18           //Key:2 
 #define KEY8 0x52           //Key:8 
@@ -45,7 +40,6 @@
 // ------------------------ Initialization -------------------------//
 Encoder LEnc(L_OUT_A, L_OUT_B);
 Encoder REnc(R_OUT_A, R_OUT_B);
-NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
 
 unsigned int pingSpeed = 50;  // How frequently are we going to send out a ping (in milliseconds). 
                               //                                  50ms would be 20 times a second.
@@ -136,7 +130,7 @@ void BluetoothSerialRead();
 void Read_XY();
 
 void setup() {
-  Serial.begin(9600);
+  //Serial.begin(9600);
   Serial1.begin(9600);
   pinMode(IR, INPUT);
   pinMode(PWMA, OUTPUT);
@@ -146,8 +140,6 @@ void setup() {
   pinMode(AIN1, OUTPUT);
   pinMode(AIN2, OUTPUT);
   pingTimer = millis();
-  Serial.println("IR control example");
-  Serial.println("Basic Encoder Test:");
 }
 
 // ----------------- Main loop of program ---------------- //
@@ -158,7 +150,6 @@ void loop() {
     TransportTask();        // Transport task 
   }
   EncoderPositionRead();    // Motors position read
-  echoCheckAsync();         // Distance read
   Drive();                  // Position correction
   Read_XY();                // Read current position on X,Y axis
   SpeedCompensation();      // Compensation motor speed while driving
@@ -171,95 +162,48 @@ void TransportTask()
 {
   if (DIRECTION == 4) {
     DriveTask = true;
-      }
-  if (IS_LOCKED != 3) // zablokowany 2 razy
-  {
-    if (Y_TARG + 5 > Y && Y_TARG - 5 < Y) Y_COMPLETE = true; else Y_COMPLETE = false;
-
-    if (X_TARG + 5 > X && X_TARG - 5 < X) X_COMPLETE = true; else X_COMPLETE = false;
-
-    if (DriveTask == true)
-    {
-      if (DISTANCE > 6)
-      {
-        IS_LOCKED = 0;
-
-        if (Y_COMPLETE == false && IS_Y_AXIS == true && Y_TARG + 5 > Y)     
-        {                       // --- if positive Y direction not reached --- //
-          if (POSITION == 2) {
-            right(); right();
-          }
-          else forward();
-        }
-        else if (Y_COMPLETE == false && IS_Y_AXIS == true && Y_TARG - 5 < Y)     
-        {                       // --- if negative Y direction not reached --- //
-          if (POSITION == 0) {
-            right(); right();
-          }
-          else forward();
-        }
-        else if (Y_COMPLETE == true && X_COMPLETE == false && IS_Y_AXIS == true)
-        {                          // --- if direction Y reached but X not --- //
-          if (X_TARG > X) {
-            right();
-          }
-          else left();
-        }
-        else if (X_COMPLETE == true && Y_COMPLETE == false && IS_X_AXIS == true)  
-        {                          // --- if direction X reached but Y not --- //
-          if (Y_TARG > Y) {
-            left();
-          }
-          else left();
-        }
-        else if (X_COMPLETE == false && IS_X_AXIS == true && X_TARG + 5 > X)  
-        {                       // --- if positive X direction not reached --- //
-          if (POSITION == 3) {
-            left(); left();
-          }
-          else forward();
-        }
-        else if (X_COMPLETE == false && IS_X_AXIS == true && X_TARG - 5 < X) 
-        {                       // --- if positive Y direction not reached --- //
-          if (POSITION == 1) {
-            right(); right();
-          }
-          else forward();
-        }
-      }
-      else if (DISTANCE <= 6)
-      {
-        IS_LOCKED ++;         // robot have been blocked once in a row
-        if (IS_LOCKED == 1)
-        {
-          if (IS_X_AXIS == true)
-          {
-            left();
-          }
-          else if (IS_Y_AXIS == true)
-          {
-            right();
-          }
-        }
-        else if (IS_LOCKED == 2) // robot have been blocked 2 twice in a row
-        {
-          IS_LOCKED++;
-          if (IS_Y_AXIS == true)
-          {
-            left();
-          }
-          else if (IS_X_AXIS == true)
-          {
-            right();
-          }
-        }
-      }
-    }
   }
-  else                        // after turn back, retract out of the blockade by 100 points (about 36cm)
+  if (Y_TARG + 5 > Y && Y_TARG - 5 < Y) Y_COMPLETE = true; else Y_COMPLETE = false;
+
+  if (X_TARG + 5 > X && X_TARG - 5 < X) X_COMPLETE = true; else X_COMPLETE = false;
+
+  if (DriveTask == true)
   {
-    forward(100);
-    IS_LOCKED = 0;
+    if (Y_COMPLETE == false && IS_Y_AXIS == true && Y_TARG + 5 > Y)     
+    {                       // --- if positive Y direction not reached --- //
+      if (POSITION == 2) {
+        right(); right();
+      }
+      else forward();
+    }
+    else if (Y_COMPLETE == false && IS_Y_AXIS == true && Y_TARG - 5 < Y)     
+    {                       // --- if negative Y direction not reached --- //
+      if (POSITION == 0) {
+        right(); right();
+      }
+      else forward();
+    }
+    else if (Y_COMPLETE == true && X_COMPLETE == false && IS_Y_AXIS == true)
+    {                          // --- if direction Y reached but X not --- //
+      if (X_TARG > X) {
+        right();
+      }
+      else left();
+    }
+    else if (X_COMPLETE == true && Y_COMPLETE == false && IS_X_AXIS == true)  
+    {                          // --- if direction X reached but Y not --- //
+      if (Y_TARG > Y) {
+        left();
+      }
+      else left();
+    }
+    else if (X_COMPLETE == false && IS_X_AXIS == true && X_TARG + 5 > X)  
+    {                       // --- if positive X direction not reached --- //
+      if (POSITION == 3) {
+        left(); left();
+      }
+      else forward();
+    }
   }
   if (Y_TARG + 4 > Y && Y_TARG - 4 < Y && X_TARG + 4 > X && X_TARG - 4 < X )
   {
@@ -287,7 +231,6 @@ void backward(){
 }
 void right(){
   DIRECTION = 2;
-  DISTANCE = 50;
   TARG_L_POS = TARG_L_POS + 24;
   TARG_R_POS = TARG_R_POS - 24;
   L_DIFF = L_DIFF + 24;
@@ -299,7 +242,6 @@ void right(){
 }
 void left(){
   DIRECTION = 2;
-  DISTANCE = 50;
   TARG_L_POS = TARG_L_POS - 24;
   TARG_R_POS = TARG_R_POS + 24;
   L_DIFF = L_DIFF - 24;
@@ -351,18 +293,6 @@ void Drive() {
     analogWrite(PWMB, SpeedRight);
     digitalWrite(BIN1, HIGH);
     digitalWrite(BIN2, LOW);
-  }
-}
-void echoCheckAsync() {
-  if (millis() >= pingTimer) {   // pingSpeed milliseconds since last ping, do another ping.
-    pingTimer += pingSpeed;      // Set the next ping time.
-    sonar.ping_timer(echoCheck); // Send out the ping, calls "echoCheck" 
-                                 // function every 24uS where you can check the ping status.
-  }
-}
-void echoCheck() {
-  if (sonar.check_timer()) {
-    DISTANCE = sonar.ping_result / US_ROUNDTRIP_CM;  // Calculate distance to cm
   }
 }
 
@@ -465,16 +395,16 @@ void Logger()
   {
     OLD_R_POS = R_MOTOR_REAL_POS;
     OLD_L_POS = L_MOTOR_REAL_POS;
-    Serial.print("");
-    Serial.print(L_MOTOR_REAL_POS );
-    Serial.print(";");
-    Serial.print(dPos);
-    Serial.print(";");
-    Serial.print(SpeedLeft);
-    Serial.print(";");
-    Serial.print(R_MOTOR_REAL_POS );
-    Serial.print(";");
-    Serial.println(SpeedRight);
+//    Serial.print("");
+//    Serial.print(L_MOTOR_REAL_POS );
+//    Serial.print(";");
+//    Serial.print(dPos);
+//    Serial.print(";");
+//    Serial.print(SpeedLeft);
+//    Serial.print(";");
+//    Serial.print(R_MOTOR_REAL_POS );
+//    Serial.print(";");
+//    Serial.println(SpeedRight);
 //    Serial.print(" | Direction: ");
 //    Serial.print(DIRECTION);
 //    Serial.print(" | Position: ");
@@ -561,7 +491,7 @@ void BluetoothSerialRead()
   }
   if (comdata.length() > 0)
   {
-    Serial.println(comdata);
+    //Serial.println(comdata);
     const char* command = comdata.c_str();
     if (strcmp(command, "Forward") == 0)
     {   
@@ -594,10 +524,10 @@ void BluetoothSerialRead()
       Task = true;
       X_TARG = comdata.substring(comdata.indexOf("(")+1,comdata.indexOf(",")).toInt();
       Y_TARG = comdata.substring(comdata.indexOf(",")+1,comdata.indexOf(")")).toInt();
-      Serial.print("Y Targ: ");
-      Serial.print(Y_TARG);
-      Serial.print(" | X Targ: ");
-      Serial.println(X_TARG);
+      //Serial.print("Y Targ: ");
+      //Serial.print(Y_TARG);
+      //Serial.print(" | X Targ: ");
+      //Serial.println(X_TARG);
     }
   comdata = "";
   }
@@ -619,7 +549,7 @@ void IR_Read()
       {
         flag_ir= 0;
         stop();
-        Serial.println("stop");
+        //Serial.println("stop");
       }
     }
   }
@@ -641,33 +571,33 @@ void translateIR() {
     case SpeedUp:
       Speed += 10;
       if (Speed > 255)Speed = 250;
-      Serial.print("Speed: ");
-      Serial.println(Speed); break;
+      //Serial.print("Speed: ");
+      //Serial.println(Speed); break;
     case SpeedDown:
       Speed -= 10;
       if (Speed < 0)Speed = 0;
-      Serial.print("Speed: ");
-      Serial.println(Speed); break;
+      //Serial.print("Speed: ");
+      //Serial.println(Speed); break;
     case ResetSpeed:
       Speed = 150;
-      Serial.print("Speed reseted: ");
-      Serial.println(Speed); break;
+      //Serial.print("Speed reseted: ");
+      //Serial.println(Speed); break;
     case AddDifSpeed:
       SetDSpeed ++;
-      Serial.print("dPos Speed: ");
-      Serial.println(SetDSpeed); break;
+      //Serial.print("dPos Speed: ");
+      //Serial.println(SetDSpeed); break;
     case SubDifSpeed:
       SetDSpeed --;
-      Serial.print("dPos Speed: ");
-      Serial.println(SetDSpeed); break;
+      //Serial.print("dPos Speed: ");
+      //Serial.println(SetDSpeed); break;
     case AddDifPos:
       SetDPos ++;
-      Serial.print("dPos: ");
-      Serial.println(SetDPos); break;
+      //Serial.print("dPos: ");
+      //Serial.println(SetDPos); break;
     case SubDifPos:
       SetDPos --;
-      Serial.print("dPos: ");
-      Serial.println(SetDPos);break;
+      //Serial.print("dPos: ");
+      //Serial.println(SetDPos);break;
     case Repeat: break;
     default: stop();
   }
@@ -705,7 +635,7 @@ char IR_decode(unsigned char * code) {
     if (data[0] + data[1] == 0xFF && data[2] + data[3] == 0xFF) //check
     {
       code[0] = data[2];
-      Serial.println(code[0], HEX);
+      // Serial.println(code[0], HEX);
       value = 1;
     }
     if (data[0] == 0xFF && data[1] == 0xFF && data[2] == 0xFF && data[3] == 0xFF)
