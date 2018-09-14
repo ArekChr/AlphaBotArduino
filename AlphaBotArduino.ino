@@ -69,22 +69,6 @@ long REF_X_NEG = 0;       // Ostatnia pozycja osi X ujemnej przez zmianą kierun
 byte DIRECTION = 1;       // Kierunek podczas jazdy / 1 = Naprzód / 0 = Cofanie / 2 = Pozostałe 
 byte POSITION = 0;        // 0 = Góra / 1 = Prawo / 2 = Dół / 3 = Lewo
 
-enum Position {
-  UP = 0,
-  Right,
-  Down,
-  Left,
-  Unknown
-};
-
-enum Direction {
-  Backward = 0,
-  Forward,
-  TurnLeft,
-  TurnRight,
-  Stop,
-};
-
 // -------------------- Zmienne Bluetooth ---------------------- //
 
 String comdata = "";            // Komenda danych
@@ -97,10 +81,11 @@ unsigned char results;          // Otrzymany sygnał
 byte flag_ir = 0;               // Flaga stanu dla IR
 
 // ------------------- Zmienne prędkości ----------------------------- //
-int DefaultSpeedRight = 110;  
-int DefaultSpeedLeft = 100;     // Główna prędkość
+int DefaultSpeedRight = 86;  
+int DefaultSpeedLeft = 80;     // Główna prędkość
 int SpeedLeft = DefaultSpeedLeft;          // Prędkość lewego koła
 int SpeedRight = DefaultSpeedRight;         // prędkość prawego kołą
+int SpeedOnTurn = 80;
 
 // ------------- Zmienne do obliczania korekcji jazdy ---------------- //
 short SetDPos = 1;          // Rozbieżność punktów dla wzoru odriometrii
@@ -139,7 +124,7 @@ void BluetoothSerialRead();
 void Read_XY();
 
 void setup() {
-  Serial.begin(9600);
+//  Serial.begin(9600);
   Serial1.begin(9600);
   pinMode(IR, INPUT);
   pinMode(PWMA, OUTPUT);
@@ -161,7 +146,7 @@ void loop() {
   Drive();                  // Algorytm jazdy
   Read_XY();                // Odczyt pozycji (x,y)
   SpeedCompensation();      // Korekta rozbieżności pozycji kół
-  Logger();                 // Czytanie danych
+//  Logger();                 // Czytanie danych
   IR_Read();                // Czytanie komend IR
   BluetoothSerialRead();    // Czytanie komend bluetooth
 }
@@ -191,9 +176,8 @@ void TransportTask()
   {
     if(Y_COMPLETE == false) {
       
-      if (Y_TARG > Y)     // jesli Y nie jest zakonczone a target jest wiekszy od Y
+      if (Y_TARG > Y + 2)
       {
-        Serial.println(" target wiekszy od y " + (String)Y_TARG + ":" + (String)Y);
         if (POSITION == 2) { right(); right(); }
         if (POSITION == 3) { right(); }
         if (POSITION == 1) { left(); }
@@ -201,9 +185,8 @@ void TransportTask()
           forward(abs(Y_TARG - Y));
         }
       }
-      else if (Y_TARG < Y)     
+      else if (Y_TARG < Y - 2)     
       {
-        Serial.println(" target mniejszy od y " + (String)Y_TARG + ":" + (String)Y);
         if (POSITION == 0) { right(); right(); }
         if (POSITION == 3) { left(); }
         if (POSITION == 1) { right(); }
@@ -214,9 +197,8 @@ void TransportTask()
     }
 
     if (Y_COMPLETE == true && X_COMPLETE == false){
-      if (X_TARG > X)
+      if (X_TARG > X + 2)
       {
-        Serial.println(" target wiekszy od x " + (String)X_TARG + ":" + (String)X);
         if (POSITION == 3) { right(); right(); }
         if (POSITION == 2) { left(); }
         if (POSITION == 0) { right(); }
@@ -224,9 +206,8 @@ void TransportTask()
           forward(abs(X_TARG - X));
         }
       }
-      if (X_TARG < X)  
+      if (X_TARG < X - 2)  
       {
-        Serial.println(" target mniejszy od x " + (String)X_TARG + ":" + (String)X);
         if (POSITION == 1) { right(); right(); }
         if (POSITION == 0) { left(); }
         if (POSITION == 2) { right(); }
@@ -240,8 +221,8 @@ void TransportTask()
 
 void forward(){
   DIRECTION = 1;
-  TARG_L_POS = TARG_L_POS + 1;   
-  TARG_R_POS = TARG_R_POS + 1;   
+  TARG_L_POS = TARG_L_POS + 50;   
+  TARG_R_POS = TARG_R_POS + 50;   
   DriveTask = false;
 }
 void forward(int distance){
@@ -252,8 +233,8 @@ void forward(int distance){
 }
 void backward(){
   DIRECTION = 0;
-  TARG_L_POS = TARG_L_POS - 1;    
-  TARG_R_POS = TARG_R_POS - 1;    
+  TARG_L_POS = TARG_L_POS - 50;    
+  TARG_R_POS = TARG_R_POS - 50;    
   DriveTask = false;
 }
 void right(){
@@ -263,8 +244,8 @@ void right(){
   L_DIFF = L_DIFF + 24;
   R_DIFF = R_DIFF - 24;
   onTurnRight();                // zmiana orientacji
-  SpeedLeft = DefaultSpeedLeft;         // Reset prędkości lewego silnika
-  SpeedRight = DefaultSpeedRight;       // Reset prędkości prawego silnika
+  SpeedLeft = SpeedOnTurn;         // Reset prędkości lewego silnika
+  SpeedRight = SpeedOnTurn;       // Reset prędkości prawego silnika
   DriveTask = false;
 }
 void left(){
@@ -274,8 +255,8 @@ void left(){
   L_DIFF = L_DIFF - 24;
   R_DIFF = R_DIFF + 24;
   onTurnLeft();                 // zmiana orientacji
-  SpeedLeft = DefaultSpeedLeft;         // Reset predkości lewego silnika
-  SpeedRight = DefaultSpeedRight;       // Reset predkości prawego silnika
+  SpeedLeft = SpeedOnTurn;         // Reset predkości lewego silnika
+  SpeedRight = SpeedOnTurn;       // Reset predkości prawego silnika
   DriveTask = false;
 }
 void stop() {
@@ -297,7 +278,7 @@ void Drive() {
     digitalWrite(BIN1, LOW);
     digitalWrite(BIN2, LOW);
   }
-  if (L_MOTOR_REAL_POS >= TARG_L_POS - 1 && R_MOTOR_REAL_POS >= TARG_R_POS - 1) 
+  if (L_MOTOR_REAL_POS == TARG_L_POS  && R_MOTOR_REAL_POS == TARG_R_POS ) 
   {
     DIRECTION = 4;
   }
@@ -403,11 +384,11 @@ void SpeedCompensation()
       }
       break;
     case 0: // gdy kierunek = tył
-      if (dPos > SetDPos) {
+      if (dPos < SetDPos) {
         SpeedLeft = DefaultSpeedLeft - SetDSpeed * abs(dPos);
         SpeedRight = DefaultSpeedRight + SetDSpeed * abs(dPos);
       }
-      else if (dPos < SetDPos) {
+      else if (dPos > SetDPos) {
         SpeedLeft = DefaultSpeedLeft + SetDSpeed * abs(dPos);
         SpeedRight = DefaultSpeedRight - SetDSpeed * abs(dPos);
       }
@@ -428,56 +409,56 @@ void Logger()
   {
     OLD_R_POS = R_MOTOR_REAL_POS;
     OLD_L_POS = L_MOTOR_REAL_POS;
-    Serial.print("");
-    Serial.print(L_MOTOR_REAL_POS );
-    Serial.print(";");
-    Serial.print(dPos);
-    Serial.print(";");
-    Serial.print(SpeedLeft);
-    Serial.print(";");
-    Serial.print(R_MOTOR_REAL_POS );
-    Serial.print(";");
-    Serial.print(SpeedRight);
-    Serial.print(" | Direction: ");
-    Serial.print(DIRECTION);
-    Serial.print(" | Position: ");
-    Serial.print(Message("POSITION"));
-    Serial.print(" | Traveled forward: ");
-    Serial.print(TRAV_ROUTE / cm );
-    Serial.print("cm | Left diff.: ");
-    Serial.print(L_DIFF / cm );
-    Serial.print("cm | Right diff.: ");
-    Serial.print(R_DIFF / cm );
-    Serial.print(" | X+: ");
-    Serial.print(X_POS);
-    Serial.print(" | X-: ");
-    Serial.print(X_NEG);
-    Serial.print(" | Y+: ");
-    Serial.print(Y_POS);
-    Serial.print(" | Y-: ");
-    Serial.print(Y_NEG);
-    Serial.print(" | Target Position: ");
-    Serial.print((TARG_L_POS + TARG_R_POS) / 2);
-    Serial.print(" | X: ");
-    Serial.print(X);
-    Serial.print(" | Y: ");
-    Serial.print(Y);
-    Serial.print(" | Target Y: ");
-    Serial.print(Y_TARG);
-    Serial.print(" | Target X: ");
-    Serial.print(X_TARG);
-    Serial.print(" | Drive Task? ");
-    Serial.print(MessageBool(DriveTask));
-    Serial.print(" | IS_X_AXIS_? : ");
-    Serial.print(MessageBool(IS_X_AXIS));
-    Serial.print(" | IS_Y_AXIS_? : ");
-    Serial.print(MessageBool(IS_Y_AXIS));
-    Serial.print(" | IsTask_? : ");
-    Serial.print(MessageBool(Task));
-    Serial.print(" | X_Is_Complete: ");
-    Serial.print(MessageBool(X_COMPLETE));
-    Serial.print(" | Y_Is_Complete: ");
-    Serial.println(MessageBool(Y_COMPLETE));
+//    Serial.print("");
+//    Serial.print(L_MOTOR_REAL_POS );
+//    Serial.print(";");
+//    Serial.print(dPos);
+//    Serial.print(";");
+//    Serial.print(SpeedLeft);
+//    Serial.print(";");
+//    Serial.print(R_MOTOR_REAL_POS );
+//    Serial.print(";");
+//    Serial.print(SpeedRight);
+//    Serial.print(" | Direction: ");
+//    Serial.print(DIRECTION);
+//    Serial.print(" | Position: ");
+//    Serial.print(Message("POSITION"));
+//    Serial.print(" | Traveled forward: ");
+//    Serial.print(TRAV_ROUTE / cm );
+//    Serial.print("cm | Left diff.: ");
+//    Serial.print(L_DIFF / cm );
+//    Serial.print("cm | Right diff.: ");
+//    Serial.print(R_DIFF / cm );
+//    Serial.print(" | X+: ");
+//    Serial.print(X_POS);
+//    Serial.print(" | X-: ");
+//    Serial.print(X_NEG);
+//    Serial.print(" | Y+: ");
+//    Serial.print(Y_POS);
+//    Serial.print(" | Y-: ");
+//    Serial.print(Y_NEG);
+//    Serial.print(" | Target Position: ");
+//    Serial.print((TARG_L_POS + TARG_R_POS) / 2);
+//    Serial.print(" | X: ");
+//    Serial.print(X);
+//    Serial.print(" | Y: ");
+//    Serial.print(Y);
+//    Serial.print(" | Target Y: ");
+//    Serial.print(Y_TARG);
+//    Serial.print(" | Target X: ");
+//    Serial.print(X_TARG);
+//    Serial.print(" | Drive Task? ");
+//    Serial.print(MessageBool(DriveTask));
+//    Serial.print(" | IS_X_AXIS_? : ");
+//    Serial.print(MessageBool(IS_X_AXIS));
+//    Serial.print(" | IS_Y_AXIS_? : ");
+//    Serial.print(MessageBool(IS_Y_AXIS));
+//    Serial.print(" | IsTask_? : ");
+//    Serial.print(MessageBool(Task));
+//    Serial.print(" | X_Is_Complete: ");
+//    Serial.print(MessageBool(X_COMPLETE));
+//    Serial.print(" | Y_Is_Complete: ");
+//    Serial.println(MessageBool(Y_COMPLETE));
   }
 }
 
@@ -553,10 +534,8 @@ void BluetoothSerialRead()
       Task = true;
       X_TARG = comdata.substring(comdata.indexOf("(")+1,comdata.indexOf(",")).toInt();
       Y_TARG = comdata.substring(comdata.indexOf(",")+1,comdata.indexOf(")")).toInt();
-      //Serial.print("Y Targ: ");
-      //Serial.print(Y_TARG);
-      //Serial.print(" | X Targ: ");
-      //Serial.println(X_TARG);
+      Y_TARG = Y_TARG * cm;
+      X_TARG = X_TARG * cm;
     }
   comdata = "";
   }
