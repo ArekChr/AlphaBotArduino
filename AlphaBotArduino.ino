@@ -1,4 +1,11 @@
-// ------------------------------- Biblioteki ----------------------------------//
+/*
+ * Praca inżynierska:
+ * Układ bezprzewodowego sterowania platformą mobilną realizującą zadanie transportowe
+ * Program sterowaia robota
+ * Arkadiusz Chrabąszczewski
+ */
+
+// ------------------------------- Biblioteki --------------------------------//
 #include <Encoder.h>
 
 // --------------------------- Definicja zmiennych ---------------------------//
