@@ -1,5 +1,4 @@
 /*
- * Układ bezprzewodowego sterowania platformą mobilną realizującą zadanie transportowe
  * Arkadiusz Chrabąszczewski
  */
 
